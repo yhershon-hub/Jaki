@@ -1,17 +1,20 @@
 import os
 import anthropic
 from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
+from flask import Flask, request
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+RAILWAY_PUBLIC_DOMAIN = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
+PORT = int(os.environ.get("PORT", 8080))
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
-def start(update: Update, context: CallbackContext):
-    update.message.reply_text("שלום! אני ג'א ג'י, העוזר האישי שלך. שלח לי הודעה ואשמח לעזור.")
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("שלום! אני ג'א ג'י, העוזר האישי שלך. שלח לי הודעה ואשמח לעזור.")
 
-def handle_message(update: Update, context: CallbackContext):
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     try:
         response = client.messages.create(
@@ -20,17 +23,22 @@ def handle_message(update: Update, context: CallbackContext):
             messages=[{"role": "user", "content": user_message}]
         )
         reply = response.content[0].text
-        update.message.reply_text(reply)
+        await update.message.reply_text(reply)
     except Exception as e:
-        update.message.reply_text(f"שגיאה: {str(e)}")
+        await update.message.reply_text(f"שגיאה: {str(e)}")
 
 def main():
-    updater = Updater(token=TELEGRAM_TOKEN, use_context=True)
-    dp = updater.dispatcher
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
-    updater.start_polling()
-    updater.idle()
+    app = Application.builder().token(TELEGRAM_TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    webhook_url = f"https://{RAILWAY_PUBLIC_DOMAIN}/webhook"
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        webhook_url=webhook_url,
+        url_path="/webhook"
+    )
 
 if __name__ == "__main__":
     main()
