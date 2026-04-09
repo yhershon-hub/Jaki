@@ -5,6 +5,8 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Con
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+RENDER_EXTERNAL_URL = os.environ.get("RENDER_EXTERNAL_URL", "")
+PORT = int(os.environ.get("PORT", 10000))
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -28,7 +30,14 @@ def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.run_polling()
+
+    webhook_url = f"{RENDER_EXTERNAL_URL}/webhook"
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        webhook_url=webhook_url,
+        url_path="/webhook"
+    )
 
 if __name__ == "__main__":
     main()
