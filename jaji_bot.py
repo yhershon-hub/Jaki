@@ -1,13 +1,10 @@
 import os
 import anthropic
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
-from flask import Flask, request
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
-RAILWAY_PUBLIC_DOMAIN = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
-PORT = int(os.environ.get("PORT", 8080))
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -28,17 +25,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"שגיאה: {str(e)}")
 
 def main():
-    app = Application.builder().token(TELEGRAM_TOKEN).build()
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-    webhook_url = f"https://{RAILWAY_PUBLIC_DOMAIN}/webhook"
-    app.run_webhook(
-        listen="0.0.0.0",
-        port=PORT,
-        webhook_url=webhook_url,
-        url_path="/webhook"
-    )
+    app.run_polling()
 
 if __name__ == "__main__":
     main()
